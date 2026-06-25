@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MdForge // Markdown Studio</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <script src="/static/vendor/marked.min.js"></script>
-    <link rel="stylesheet" href="/static/vendor/prism-tomorrow.min.css">
-    <script src="/static/vendor/prism.min.js"></script>
-    <script src="/static/vendor/prism-python.min.js"></script>
-    <script src="/static/vendor/prism-bash.min.js"></script>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="./vendor/marked.min.js"></script>
+    <link rel="stylesheet" href="./vendor/prism-tomorrow.min.css">
+    <script src="./vendor/prism.min.js"></script>
+    <script src="./vendor/prism-python.min.js"></script>
+    <script src="./vendor/prism-bash.min.js"></script>
+    <link rel="stylesheet" href="./css/style.css">
 </head>
 <body class="mode-split">
 
@@ -18,13 +18,20 @@
         <!-- 1. Sidebar (Dateiliste) -->
         <aside id="sidebar" class="bento-card">
             <div class="sidebar-header">
-                <div class="brand">MdForge // STUDIO</div>
-                <button onclick="createNewDoc()" class="btn-icon" title="Neue Datei">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                </button>
+                <div class="brand">MdForge</div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="openDirectory()" class="btn-icon" title="Ordner öffnen">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                    </button>
+                    <button onclick="createNewDoc()" class="btn-icon" title="Neue Datei">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div id="doc-list"></div>
         </aside>
@@ -53,7 +60,7 @@
 
             <!-- 2.2 Editor Card -->
             <div id="editor-card" class="bento-card">
-                <textarea id="md-input" spellcheck="false" placeholder="Wähle eine Datei oder erstelle eine neue, um mit dem Schreiben zu beginnen..."></textarea>
+                <textarea id="md-input" spellcheck="false" placeholder="Öffne einen Ordner oder erstelle eine neue Datei, um mit dem Schreiben zu beginnen..."></textarea>
             </div>
 
             <!-- 2.3 Preview Card -->
@@ -73,6 +80,7 @@
                         </svg>
                         AI Assist
                     </div>
+                    <input type="password" id="gemini-key-input" class="ai-select" placeholder="Gemini API Key..." onchange="saveGeminiKey()">
                     <select id="ai-agent-select" class="ai-select">
                         <option value="BTC_Macro_Analyst">Macro Analyst</option>
                         <option value="BTC_Sentiment_Oracle">Sentiment Oracle</option>
@@ -110,15 +118,15 @@
                 <div id="status-card" class="bento-card">
                     <div class="section-title">System-Status</div>
                     <div class="status-row">
-                        <span>API-Konnektivität</span>
+                        <span>KI-Status</span>
                         <span>
                             <span id="ai-status-dot" class="status-dot"></span>
                             <span id="ai-status-text">KI bereit</span>
                         </span>
                     </div>
                     <div class="status-row">
-                        <span>Backend-Verbindung</span>
-                        <span id="sys-api-status" style="color: var(--cyan); font-weight: bold;">Verbinde...</span>
+                        <span>Verbindungsmodus</span>
+                        <span id="sys-api-status" style="color: var(--cyan); font-weight: bold;">Lokal (Offline)</span>
                     </div>
                     <div class="status-row">
                         <span>Projektname</span>
@@ -133,6 +141,6 @@
     <div id="save-status" onclick="saveActiveDoc()">ÄNDERUNGEN SPEICHERN</div>
 
     <!-- Script Import -->
-    <script src="/static/js/app.js"></script>
+    <script src="./js/app.js"></script>
 </body>
 </html>

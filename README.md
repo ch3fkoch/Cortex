@@ -1,18 +1,23 @@
 # MdForge
 
-Ein leichtgewichtiger, eigenständiger Markdown-Editor und -Viewer, der nach den offiziellen **HEIMDALL-Standards** entwickelt wurde. Dieses Projekt ermöglicht das sichere Verwalten, Schreiben und Vorschauen von Markdown-Dateien auf lokalen Systemen sowie auf Rocky Linux Servern.
+**MdForge** ist ein moderner, serverloser (rein statischer) Markdown-Editor und -Viewer in edler Aero- und Glassmorphismus-Ästhetik mit einem fließenden Farbverlauf von **Neon-Cyan zu Violett**.
+
+Die Anwendung läuft vollständig clientseitig im Webbrowser – es ist **kein Server, kein Python und keine Installation von Abhängigkeiten erforderlich**.
 
 ---
 
 ## Features
 
+- **Reines Frontend (Serverless):** Keine Hintergrunddienste, keine offenen Netzwerkports. Öffne einfach die `index.html` direkt im Browser.
+- **Lokaler Dateizugriff (HTML5 File System Access API):**
+  *   **Ordner öffnen:** Wähle ein lokales Verzeichnis aus. MdForge scannt und listet alle `.md` und `.txt` Dateien direkt in der Sidebar auf.
+  *   **Direktes Speichern:** Änderungen werden mit `Strg+S` oder Klick auf "Speichern" direkt zurück auf deine Festplatte geschrieben.
+  *   **Neue Dateien:** Erstelle neue Dokumente direkt über das Interface auf deiner Festplatte.
+  *   **Sicherer Löschvorgang:** Dateien können direkt aus der App von der Festplatte gelöscht werden (nach Bestätigung).
+- **Universeller Fallback:** In Browsern ohne vollen API-Support (z. B. Firefox oder Safari) funktioniert die App im Fallback-Modus über manuelle Uploads/Downloads.
 - **Echtzeit-Markdown-Vorschau:** Live-Rendering von Markdown-Inhalten mit Syntax-Highlighting via Prism.
-- **Sicheres CRUD:** Dateien können über die API gelistet, gelesen, erstellt, gespeichert und gelöscht werden. 
-- **Path-Traversal-Schutz:** Streng validierte Pfad-Auflösung verhindert den Zugriff auf sensible Systembereiche außerhalb des konfigurierten Verzeichnisses.
-- **Zentrale Konfiguration:** Alle Einstellungen werden über `core/config.py` geladen (Heimdall-Standard).
-- **Strukturiertes Logging:** Vollständig integriertes, rotierendes JSON/Console-Logging via `structlog`.
-- **Port-Sicherung:** Automatisches Freigeben blockierter Ports beim Server-Start.
-- **AI Assist (Gemini Integration):** Optionale Anbindung an die Gemini API für automatische Textoptimierung und Berichte (Makro-Analyse, Sentiment, Risiko-Szenarien).
+- **Integriertes Text-Qualitätsbarometer:** Berechnet Zeichen, Wörter, Zeilen und geschätzte Lesezeit live beim Tippen.
+- **Direct AI Assist (Gemini Integration):** Trage deinen Gemini API-Key direkt in der Oberfläche ein (wird sicher lokal im Browser-Speicher abgelegt), um direkt clientseitig Textanalysen und Berichte zu generieren.
 
 ---
 
@@ -20,75 +25,38 @@ Ein leichtgewichtiger, eigenständiger Markdown-Editor und -Viewer, der nach den
 
 ```
 MdForge/
-├── .env                  # Lokale Konfigurationsvariablen
-├── .gitignore            # Git-Ausschlüsse
-├── requirements.txt      # Python-Paketabhängigkeiten
+├── index.html            # Hauptseite (semantisches HTML)
+├── LICENSE               # MIT Lizenz
 ├── README.md             # Diese Anleitung
-├── api.py                # Haupteinstiegspunkt (FastAPI)
-├── core/                 # HEIMDALL Core-Module
-│   ├── __init__.py
-│   ├── config.py         # Zentrales Config-Objekt & Logging
-│   ├── auth.py           # Optionale JWT-Authentifizierung
-│   └── utils.py          # Hilfsfunktionen (Portfreigabe)
-├── routes/               # API-Router
-│   ├── __init__.py
-│   ├── docs.py           # Dokumenten-Verwaltung & AI-Endpunkte
-│   └── ui.py             # Serving des UI Frontends
-└── static/               # Statische Web-Assets
-    ├── index.html        # Der Markdown Studio Editor
-    └── vendor/           # JavaScript/CSS Bibliotheken (marked, prism)
+├── css/
+│   └── style.css         # Bento-Grid & Glassmorphismus (Cyan-Violett)
+├── js/
+│   └── app.js            # Client-Logik & File System Access API
+└── vendor/               # JavaScript/CSS Bibliotheken (marked, prism)
 ```
 
 ---
 
-## Installation & Einrichtung
+## Starten und Verwenden
 
-### 1. Repository-Vorbereitung
+### Option A: Direkt im Browser öffnen (Empfohlen)
 
-Erstelle eine virtuelle Python-Umgebung und installiere die Abhängigkeiten:
+1. Navigiere in deinem Dateimanager zum Ordner `MdForge`.
+2. Öffne die Datei [index.html](file:///Users/stephan/developer/MdForge/index.html) mit einem Doppelklick in deinem Webbrowser (am besten in einem Chromium-basierten Browser wie **Google Chrome**, **Microsoft Edge** oder **Opera**).
+
+### Option B: Über einen einfachen Webserver (Optional)
+
+Wenn du die App über eine lokale Webadresse laufen lassen möchtest, kannst du einen eingebauten Server nutzen:
 
 ```bash
-# In das Projektverzeichnis wechseln
 cd /Users/stephan/developer/MdForge
-
-# Virtuelle Umgebung erstellen
-python3 -m venv .venv
-
-# Virtuelle Umgebung aktivieren
-source .venv/bin/activate
-
-# Abhängigkeiten installieren
-pip install -r requirements.txt
+python3 -m http.server 5005
 ```
 
-### 2. Konfiguration anpassen (`.env`)
-
-Kopiere oder bearbeite die `.env`-Datei. Hier kannst du einstellen, in welchem Ordner nach Markdown-Dateien gesucht werden soll (`DOCS_DIR`):
-
-```ini
-PROJECT_NAME=MdForge
-HOST=127.0.0.1
-PORT=5005
-DEBUG=true
-
-# Ändere diesen Pfad auf das Verzeichnis deiner Wahl
-DOCS_DIR=/Users/stephan/developer
-
-# Optionale Authentifizierung
-AUTH_ENABLED=false
-
-# Google Gemini API Key (für AI Assist)
-GEMINI_API_KEY=dein_api_key_hier
-```
+Danach erreichst du die App unter [http://localhost:5005/](http://localhost:5005/).
 
 ---
 
-## Server starten
+## Lizenz
 
-Starte die Anwendung einfach über den Haupteinstiegspunkt:
-
-```bash
-python api.py
-```
-
-Der Server ist danach unter [http://localhost:5005/](http://localhost:5005/) erreichbar.
+Das Projekt steht unter der [MIT Lizenz](file:///Users/stephan/developer/MdForge/LICENSE).
