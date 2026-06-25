@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MdForge // Markdown Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="/static/vendor/marked.min.js"></script>
+    <link rel="stylesheet" href="/static/vendor/prism-tomorrow.min.css">
+    <script src="/static/vendor/prism.min.js"></script>
+    <script src="/static/vendor/prism-python.min.js"></script>
+    <script src="/static/vendor/prism-bash.min.js"></script>
+    <style>
+        :root {
+            --mt-dunkelblau: #20344f;
+            --mt-blaugrau: #52627b;
+            --mt-hellgrau: #edeef0;
+            --mt-lemon: #e0ff01;
+            --sidebar-width: 320px;
+            --header-height: 70px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--mt-dunkelblau);
+            color: var(--mt-hellgrau);
+            font-family: 'Outfit', sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styling */
+        #sidebar {
+            width: var(--sidebar-width);
+            background: #1a2a40;
+            border-right: 1px solid rgba(82, 98, 123, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 25px;
+            border-bottom: 1px solid rgba(82, 98, 123, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand { font-weight: 700; font-size: 1rem; color: var(--mt-lemon); letter-spacing: 2px; }
+
+        .btn-icon {
+            background: none; border: 1px solid var(--mt-blaugrau); color: var(--mt-hellgrau);
+            padding: 6px; border-radius: 4px; cursor: pointer; transition: 0.2s;
+        }
+        .btn-icon:hover { border-color: var(--mt-lemon); color: var(--mt-lemon); }
+
+        #doc-list { flex: 1; overflow-y: auto; padding: 20px 15px; }
+        
+        .doc-item {
+            padding: 10px 15px; cursor: pointer; border-radius: 6px; transition: 0.2s;
+            font-size: 0.85rem; color: #aaa; margin-bottom: 5px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .doc-item:hover { background: rgba(82, 98, 123, 0.2); color: #fff; }
+        .doc-item.active { background: rgba(224, 255, 1, 0.1); color: var(--mt-lemon); font-weight: bold; }
+        
+        .delete-file { visibility: hidden; opacity: 0.5; }
+        .doc-item:hover .delete-file { visibility: visible; }
+        .delete-file:hover { color: #ff4444; opacity: 1; }
+
+        /* Main Workspace */
+        #workspace { flex: 1; display: flex; flex-direction: column; }
+
+        header {
+            height: var(--header-height);
+            border-bottom: 1px solid rgba(82, 98, 123, 0.2);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 40px;
+            background: rgba(32, 52, 79, 0.5);
+        }
+
+        .editor-tools { display: flex; gap: 10px; }
+        .tool-btn {
+            background: none; border: none; color: #777; cursor: pointer; font-family: 'Roboto Mono';
+            font-size: 0.9rem; padding: 5px 10px; border-radius: 4px; transition: 0.2s;
+        }
+        .tool-btn:hover { color: var(--mt-lemon); background: rgba(82, 98, 123, 0.2); }
+
+        .view-controls { display: flex; background: #1a2a40; border-radius: 20px; padding: 4px; gap: 5px; }
+        .view-btn {
+            background: none; border: none; color: #555; padding: 5px 15px; border-radius: 15px;
+            font-size: 0.75rem; cursor: pointer; transition: 0.3s; font-weight: 700;
+        }
+        .view-btn.active { background: var(--mt-blaugrau); color: #fff; }
+
+        /* Split Screen Container */
+        #split-view { flex: 1; display: flex; overflow: hidden; }
+
+        #editor-pane, #preview-pane { flex: 1; overflow-y: auto; height: 100%; transition: 0.3s; }
+        #editor-pane { border-right: 1px solid rgba(82, 98, 123, 0.2); padding: 0; display: flex; }
+        
+        #md-input {
+            width: 100%; height: 100%; background: #0a0a0f; color: #ccc;
+            border: none; padding: 40px; font-family: 'Roboto Mono', monospace;
+            font-size: 1rem; resize: none; outline: none; line-height: 1.6;
+        }
+
+        #preview-pane { padding: 40px 10%; background: var(--mt-dunkelblau); }
+        .preview-content { max-width: 800px; margin: 0 auto; line-height: 1.8; }
+
+        /* MD Elements */
+        .preview-content h1, .preview-content h2 { color: var(--mt-lemon); margin-top: 1.5rem; }
+        .preview-content code { color: var(--mt-lemon); background: rgba(224, 255, 1, 0.05); padding: 2px 5px; }
+        .preview-content pre { background: #0d1117 !important; padding: 20px !important; border-radius: 8px !important; border: 1px solid #222 !important; }
+        .preview-content a { color: var(--mt-lemon); border-bottom: 1px dotted var(--mt-lemon); }
+
+        /* Modes */
+        body.mode-editor #preview-pane { display: none; }
+        body.mode-preview #editor-pane { display: none; }
+        body.mode-split #editor-pane, body.mode-split #preview-pane { display: block; }
+
+        /* Floating Save */
+        #save-status {
+            position: fixed; bottom: 30px; right: 30px;
+            background: var(--mt-lemon); color: var(--mt-dunkelblau);
+            padding: 12px 25px; border-radius: 30px; font-weight: 700;
+            font-size: 0.8rem; box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            display: none; animation: slideUp 0.3s ease; cursor: pointer;
+        }
+
+        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body class="mode-split">
+
+    <aside id="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">MdForge // STUDIO</div>
+            <button onclick="createNewDoc()" class="btn-icon" title="Neu">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+        </div>
+        <div id="doc-list"></div>
+    </aside>
+
+    <main id="workspace">
+        <header>
+            <div class="editor-tools">
+                <button onclick="insertAtCursor('**', '**')" class="tool-btn" title="Fett">B</button>
+                <button onclick="insertAtCursor('*', '*')" class="tool-btn" title="Kursiv">I</button>
+                <button onclick="insertAtCursor('[', '](url)')" class="tool-btn" title="Link">L</button>
+                <button onclick="insertAtCursor('# ', '')" class="tool-btn">H1</button>
+                <button onclick="insertAtCursor('--- \n', '')" class="tool-btn">—</button>
+                <button onclick="insertTable()" class="tool-btn" title="Tabelle">TBL</button>
+                <div style="width: 1px; height: 20px; background: #333; margin: 0 10px;"></div>
+                <select id="ai-agent-select" class="tool-btn" style="background: rgba(224, 255, 1, 0.05); color: var(--mt-lemon); border: 1px solid rgba(224, 255, 1, 0.2);">
+                    <option value="BTC_Macro_Analyst">Macro Analyst</option>
+                    <option value="BTC_Sentiment_Oracle">Sentiment Oracle</option>
+                    <option value="BTC_Risk_Strategist">Risk Strategist</option>
+                </select>
+                <button onclick="runAiAssist(event)" class="btn btn-lemon" style="padding: 5px 15px; font-size: 0.7rem; background: var(--mt-lemon); color: var(--mt-dunkelblau); border: none; font-weight: bold; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                    AI ASSIST
+                </button>
+            </div>
+
+            <div id="file-title" style="font-size: 0.8rem; font-weight: 700; letter-spacing: 1px; color: #666;">KEINE DATEI GEWÄHLT</div>
+
+            <div class="view-controls">
+                <button onclick="setMode('editor')" class="view-btn" id="btn-editor">EDIT</button>
+                <button onclick="setMode('split')" class="view-btn active" id="btn-split">SPLIT</button>
+                <button onclick="setMode('preview')" class="view-btn" id="btn-preview">READ</button>
+            </div>
+        </header>
+
+        <div id="split-view">
+            <div id="editor-pane">
+                <textarea id="md-input" spellcheck="false" placeholder="Beginne mit dem Schreiben..."></textarea>
+            </div>
+            <div id="preview-pane">
+                <div id="preview-content" class="preview-content"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="save-status" onclick="saveActiveDoc()">ÄNDERUNGEN SPEICHERN</div>
+
+    <script>
+        const API_BASE = "/api";
+        let activeFile = null;
+        let hasChanges = false;
+
+        marked.setOptions({
+            highlight: (code, lang) => Prism.languages[lang] ? Prism.highlight(code, Prism.languages[lang], lang) : code,
+            breaks: true, gfm: true
+        });
+
+        async function loadDocList() {
+            try {
+                const res = await fetch(`${API_BASE}/docs/list`);
+                const data = await res.json();
+                const container = document.getElementById('doc-list');
+                container.innerHTML = data.documents.map(doc => `
+                    <div class="doc-item ${activeFile === doc.path ? 'active' : ''}" onclick="openFile('${doc.path}')">
+                        <span>${doc.name}</span>
+                        <span class="delete-file" onclick="deleteFile(event, '${doc.path}')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </span>
+                    </div>
+                `).join('');
+            } catch(e) {
+                console.error("Fehler beim Laden der Dokumentenliste:", e);
+            }
+        }
+
+        async function openFile(path) {
+            if (hasChanges && !confirm("Nicht gespeicherte Änderungen gehen verloren. Fortfahren?")) return;
+            activeFile = path;
+            try {
+                const res = await fetch(`${API_BASE}/docs/read?path=${encodeURIComponent(path)}`);
+                const data = await res.json();
+                document.getElementById('md-input').value = data.content;
+                document.getElementById('file-title').innerText = data.filename.toUpperCase();
+                document.getElementById('save-status').style.display = 'none';
+                hasChanges = false;
+                updatePreview();
+                loadDocList();
+            } catch (e) {
+                alert("Fehler beim Öffnen der Datei.");
+            }
+        }
+
+        function updatePreview() {
+            const text = document.getElementById('md-input').value;
+            document.getElementById('preview-content').innerHTML = marked.parse(text);
+            Prism.highlightAll();
+        }
+
+        document.getElementById('md-input').addEventListener('input', () => {
+            hasChanges = true;
+            document.getElementById('save-status').style.display = 'block';
+            updatePreview();
+        });
+
+        async function saveActiveDoc() {
+            if (!activeFile) return;
+            const content = document.getElementById('md-input').value;
+            try {
+                const res = await fetch(`${API_BASE}/docs/save`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: activeFile, content })
+                });
+                if(res.ok) {
+                    hasChanges = false;
+                    document.getElementById('save-status').style.display = 'none';
+                    console.log("Gespeichert.");
+                } else {
+                    alert("Fehler beim Speichern der Datei.");
+                }
+            } catch(e) {
+                alert("Speichern fehlgeschlagen.");
+            }
+        }
+
+        async function createNewDoc() {
+            const name = prompt("Name der neuen Datei (z.B. Notizen.md):");
+            if (!name) return;
+            try {
+                const res = await fetch(`${API_BASE}/docs/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                if(res.ok) {
+                    const data = await res.json();
+                    await loadDocList(); // Liste aktualisieren
+                    openFile(data.path);
+                } else {
+                    const err = await res.json();
+                    alert("Fehler: " + err.detail);
+                }
+            } catch(e) {
+                alert("Erstellen fehlgeschlagen.");
+            }
+        }
+
+        async function deleteFile(e, path) {
+            e.stopPropagation();
+            if(!confirm(`Datei ${path} wirklich löschen?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/docs/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path })
+                });
+                if(res.ok) {
+                    if(activeFile === path) {
+                        activeFile = null;
+                        document.getElementById('md-input').value = "";
+                        document.getElementById('preview-content').innerHTML = "";
+                        document.getElementById('file-title').innerText = "KEINE DATEI GEWÄHLT";
+                    }
+                    loadDocList();
+                } else {
+                    alert("Löschen fehlgeschlagen.");
+                }
+            } catch(e) {
+                alert("Fehler beim Löschen.");
+            }
+        }
+
+        async function runAiAssist(e) {
+            const agent = document.getElementById('ai-agent-select').value;
+            const content = document.getElementById('md-input').value;
+            const btn = e.currentTarget;
+            const oldHtml = btn.innerHTML;
+            
+            try {
+                btn.innerHTML = "LÄDT...";
+                btn.disabled = true;
+                
+                const res = await fetch(`${API_BASE}/docs/ai_assist`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ agent, content })
+                });
+                
+                const data = await res.json();
+                if (res.ok) {
+                    const aiText = `\n\n### 🤖 KI-ANALYSE (${data.agent})\n${data.content}\n\n`;
+                    insertAtCursor(aiText, "");
+                } else {
+                    alert("KI-Fehler: " + data.detail);
+                }
+            } catch (err) {
+                alert("Verbindungsfehler zur KI.");
+            } finally {
+                btn.innerHTML = oldHtml;
+                btn.disabled = false;
+            }
+        }
+
+        function setMode(mode) {
+            document.body.className = `mode-${mode}`;
+            document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${mode}`).classList.add('active');
+        }
+
+        协助 = insertAtCursor; // Legacy alias if needed
+
+        function insertAtCursor(before, after) {
+            const area = document.getElementById('md-input');
+            const start = area.selectionStart;
+            const end = area.selectionEnd;
+            const val = area.value;
+            const selected = val.substring(start, end);
+            area.value = val.substring(0, start) + before + selected + after + val.substring(end);
+            area.focus();
+            area.selectionStart = start + before.length;
+            area.selectionEnd = start + before.length + selected.length;
+            updatePreview();
+        }
+
+        function insertTable() {
+            const table = "\n| Spalte 1 | Spalte 2 |\n| :--- | :--- |\n| Wert 1 | Wert 2 |\n";
+            insertAtCursor(table, "");
+        }
+
+        // Shortcuts
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey && e.key === 's') { e.preventDefault(); saveActiveDoc(); }
+        });
+
+        loadDocList();
+    </script>
+</body>
+</html>
