@@ -80,7 +80,7 @@ body::after {
 /* Bento Grid Haupt-Layout */
 #app-container {
     display: grid;
-    grid-template-columns: var(--sidebar-width) 1fr;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
     height: 100vh;
     padding: 15px;
     gap: 15px;
@@ -98,6 +98,7 @@ body::after {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    min-height: 0;
 }
 
 .bento-card:hover {
@@ -202,7 +203,7 @@ body::after {
     grid-column: 2;
     display: grid;
     grid-template-columns: 2fr 2fr 1.2fr;
-    grid-template-rows: var(--header-height) 1fr;
+    grid-template-rows: var(--header-height) minmax(0, 1fr);
     gap: 15px;
 }
 

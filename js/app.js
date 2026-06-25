@@ -38,12 +38,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Gemini API Key aus LocalStorage laden
-    const savedKey = localStorage.getItem("gemini_api_key");
-    if (savedKey) {
-        document.getElementById("gemini-key-input").value = savedKey;
-    }
-
     // Unterstützung für File System API prüfen und anzeigen
     updateApiStatus();
 });
@@ -246,89 +240,7 @@ async function deleteFile(e, name) {
     }
 }
 
-// ── Gemini Key Management ────────────────────────────────────────────────────
 
-function saveGeminiKey() {
-    const key = document.getElementById("gemini-key-input").value;
-    localStorage.setItem("gemini_api_key", key);
-    console.log("Gemini API-Key lokal gespeichert.");
-}
-
-// ── AI Assist (Direkte REST-Schnittstelle) ────────────────────────────────────
-
-async function runAiAssist(e) {
-    const apiKey = document.getElementById("gemini-key-input").value.trim();
-    if (!apiKey) {
-        alert("Bitte trage zuerst deinen Gemini API-Key ein.");
-        return;
-    }
-
-    const agent = document.getElementById("ai-agent-select").value;
-    const content = document.getElementById("md-input").value;
-    const btn = e.currentTarget;
-    const oldHtml = btn.innerHTML;
-    
-    const statusDot = document.getElementById("ai-status-dot");
-    const statusText = document.getElementById("ai-status-text");
-    
-    try {
-        btn.innerHTML = "LÄDT...";
-        btn.disabled = true;
-        statusDot.className = "status-dot loading";
-        statusText.innerText = "KI rechnet...";
-
-        // System-Prompts definieren
-        const personas = {
-            "BTC_Macro_Analyst": "Du bist ein renommierter Makro-Analyst. Analysiere den folgenden Text und ergänze eine prägnante, datengetriebene makroökonomische Perspektive bezüglich des Inhalts.",
-            "BTC_Sentiment_Oracle": "Du bist ein Sentiment-Orakel. Analysiere den folgenden Text und ergänze eine detaillierte Markt-Stimmungsanalyse bezüglich des Inhalts.",
-            "BTC_Risk_Strategist": "Du bist ein Risiko-Stratege. Analysiere den folgenden Text und ergänze konkrete Risiko-Metriken, Drawdown-Szenarien und Absicherungs-Strategien."
-        };
-
-        const promptPrefix = personas[agent] || personas["BTC_Macro_Analyst"];
-        const fullPrompt = `${promptPrefix}\n\nAktueller Textinhalt:\n${content}`;
-
-        // Direkter REST Call an die Gemini 2.5 Flash API
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-        const reqData = {
-            contents: [{
-                parts: [{ text: fullPrompt }]
-            }]
-        };
-
-        const res = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(reqData)
-        });
-
-        if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.error?.message || "API-Fehler");
-        }
-
-        const resJson = await res.json();
-        const generatedText = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
-
-        if (generatedText) {
-            const aiText = `\n\n### 🤖 KI-ANALYSE (${agent})\n${generatedText}\n\n`;
-            insertAtCursor(aiText, "");
-            statusText.innerText = "KI bereit";
-        } else {
-            throw new Error("Keine Antwort generiert.");
-        }
-
-    } catch (err) {
-        alert("KI-Fehler: " + err.message);
-        statusText.innerText = "KI Fehler";
-    } finally {
-        btn.innerHTML = oldHtml;
-        btn.disabled = false;
-        statusDot.className = "status-dot";
-        if (statusText.innerText === "KI rechnet...") {
-            statusText.innerText = "KI bereit";
-        }
-    }
-}
 
 // ── UI-States, Text-Metriken & Helpers ────────────────────────────────────────
 

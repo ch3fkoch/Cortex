@@ -70,27 +70,6 @@
 
             <!-- 2.4 Rechte Widget-Spalte -->
             <div id="right-sidebar">
-                <!-- AI Assist Widget -->
-                <div id="ai-assist-card" class="bento-card">
-                    <div class="section-title">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                            <path d="M2 17l10 5 10-5"></path>
-                            <path d="M2 12l10 5 10-5"></path>
-                        </svg>
-                        AI Assist
-                    </div>
-                    <input type="password" id="gemini-key-input" class="ai-select" placeholder="Gemini API Key..." onchange="saveGeminiKey()">
-                    <select id="ai-agent-select" class="ai-select">
-                        <option value="BTC_Macro_Analyst">Macro Analyst</option>
-                        <option value="BTC_Sentiment_Oracle">Sentiment Oracle</option>
-                        <option value="BTC_Risk_Strategist">Risk Strategist</option>
-                    </select>
-                    <button onclick="runAiAssist(event)" class="btn-gradient">
-                        Text optimieren
-                    </button>
-                </div>
-
                 <!-- Text-Metadaten Widget -->
                 <div id="metadata-card" class="bento-card">
                     <div class="section-title">Metadaten</div>
@@ -117,13 +96,6 @@
                 <!-- System-Status Widget -->
                 <div id="status-card" class="bento-card">
                     <div class="section-title">System-Status</div>
-                    <div class="status-row">
-                        <span>KI-Status</span>
-                        <span>
-                            <span id="ai-status-dot" class="status-dot"></span>
-                            <span id="ai-status-text">KI bereit</span>
-                        </span>
-                    </div>
                     <div class="status-row">
                         <span>Verbindungsmodus</span>
                         <span id="sys-api-status" style="color: var(--cyan); font-weight: bold;">Lokal (Offline)</span>
