@@ -244,9 +244,51 @@ async function deleteFile(e, name) {
 
 // ── UI-States, Text-Metriken & Helpers ────────────────────────────────────────
 
-function updatePreview() {
+const imageCache = new Map();
+
+async function updatePreview() {
     const text = document.getElementById("md-input").value;
-    document.getElementById("preview-content").innerHTML = marked.parse(text);
+    const rawHtml = marked.parse(text);
+    
+    // HTML parsen, um Bilder zu finden
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(rawHtml, 'text/html');
+    const images = doc.querySelectorAll('img');
+    
+    if (currentDirHandle && images.length > 0) {
+        for (const img of images) {
+            const src = img.getAttribute('src');
+            // Nur relative Pfade auflösen (keine URLs oder Data-URIs)
+            if (src && !src.match(/^(http|https|data|blob|file):/i)) {
+                try {
+                    if (imageCache.has(src)) {
+                        img.setAttribute('src', imageCache.get(src));
+                    } else {
+                        // Pfad in Verzeichnisse und Dateinamen aufteilen
+                        const parts = src.split('/').filter(p => p && p !== '.');
+                        let handle = currentDirHandle;
+                        
+                        // Durch die Ordnerhierarchie navigieren
+                        for (let i = 0; i < parts.length - 1; i++) {
+                            handle = await handle.getDirectoryHandle(parts[i]);
+                        }
+                        
+                        // Datei-Handle holen und als Blob-URL lesen
+                        const fileHandle = await handle.getFileHandle(parts[parts.length - 1]);
+                        const file = await fileHandle.getFile();
+                        const blobUrl = URL.createObjectURL(file);
+                        
+                        imageCache.set(src, blobUrl);
+                        img.setAttribute('src', blobUrl);
+                    }
+                } catch (e) {
+                    console.warn('Konnte lokales Bild nicht laden:', src, e);
+                }
+            }
+        }
+    }
+    
+    document.getElementById("preview-content").innerHTML = doc.body.innerHTML;
     Prism.highlightAll();
     updateStats(text);
 }
@@ -273,22 +315,25 @@ function resetStats() {
 }
 
 function setMode(mode) {
-    document.body.className = `mode-${mode}`;
+    document.body.classList.remove('mode-editor', 'mode-split', 'mode-preview');
+    document.body.classList.add(`mode-${mode}`);
     document.querySelectorAll(".view-btn").forEach(b => b.classList.remove("active"));
     document.getElementById(`btn-${mode}`).classList.add("active");
+}
+
+function toggleFullscreen() {
+    document.body.classList.toggle("fullscreen-active");
 }
 
 function insertAtCursor(before, after) {
     const area = document.getElementById("md-input");
     const start = area.selectionStart;
     const end = area.selectionEnd;
-    const val = area.value;
-    const selected = val.substring(start, end);
-    
-    area.value = val.substring(0, start) + before + selected + after + val.substring(end);
+    const text = area.value;
+    area.value = text.substring(0, start) + before + text.substring(start, end) + after + text.substring(end);
     area.focus();
     area.selectionStart = start + before.length;
-    area.selectionEnd = start + before.length + selected.length;
+    area.selectionEnd = end + before.length;
     
     hasChanges = true;
     document.getElementById("save-status").style.display = "block";
@@ -296,6 +341,192 @@ function insertAtCursor(before, after) {
 }
 
 function insertTable() {
-    const table = "\n| Spalte 1 | Spalte 2 |\n| :--- | :--- |\n| Wert 1 | Wert 2 |\n";
-    insertAtCursor(table, "");
+    const table = `\n| Spalte 1 | Spalte 2 |\n| -------- | -------- |\n| Wert 1   | Wert 2   |\n`;
+    insertAtCursor(table, '');
 }
+
+// ==========================================
+// SLASH COMMANDS (NOTION STYLE)
+// ==========================================
+let slashMenuVisible = false;
+let slashSearchText = '';
+let slashSelectedIndex = 0;
+let slashStartPosition = -1;
+
+function getCaretCoordinates(element, position) {
+    const div = document.createElement('div');
+    div.className = 'ghost-div';
+    
+    const style = window.getComputedStyle(element);
+    ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'paddingTop', 'paddingLeft', 'paddingRight', 'paddingBottom', 'border', 'borderWidth', 'boxSizing'].forEach(prop => {
+        div.style[prop] = style[prop];
+    });
+    
+    div.style.width = element.clientWidth + 'px';
+    div.style.height = element.clientHeight + 'px';
+    
+    div.textContent = element.value.substring(0, position);
+    const span = document.createElement('span');
+    span.textContent = element.value.substring(position) || '.';
+    div.appendChild(span);
+    
+    document.body.appendChild(div);
+    
+    const x = span.offsetLeft;
+    const y = span.offsetTop;
+    
+    document.body.removeChild(div);
+    return { top: y, left: x };
+}
+
+function setupSlashMenu() {
+    const mdInput = document.getElementById("md-input");
+    const slashMenu = document.getElementById("slash-menu");
+    const items = Array.from(slashMenu.querySelectorAll(".slash-item"));
+    
+    function closeMenu() {
+        slashMenuVisible = false;
+        slashMenu.classList.remove("visible");
+        slashSearchText = '';
+        slashStartPosition = -1;
+    }
+    
+    function filterItems() {
+        let visibleCount = 0;
+        const query = slashSearchText.toLowerCase();
+        
+        items.forEach(item => {
+            const text = item.textContent.trim().toLowerCase();
+            if (text.includes(query) || item.dataset.cmd.includes(query)) {
+                item.style.display = 'flex';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+            item.classList.remove("active");
+        });
+        
+        if (visibleCount === 0) {
+            closeMenu();
+        } else {
+            slashSelectedIndex = 0;
+            updateSelection();
+        }
+    }
+    
+    function updateSelection() {
+        const visibleItems = items.filter(item => item.style.display !== 'none');
+        visibleItems.forEach((item, index) => {
+            if (index === slashSelectedIndex) {
+                item.classList.add("active");
+                item.scrollIntoView({ block: "nearest" });
+            } else {
+                item.classList.remove("active");
+            }
+        });
+    }
+    
+    function executeCommand(cmd) {
+        const value = mdInput.value;
+        const before = value.substring(0, slashStartPosition);
+        const after = value.substring(mdInput.selectionStart);
+        
+        let insertText = "";
+        let cursorOffset = 0;
+        
+        switch (cmd) {
+            case "h1": insertText = "# "; break;
+            case "h2": insertText = "## "; break;
+            case "h3": insertText = "### "; break;
+            case "ul": insertText = "- "; break;
+            case "ol": insertText = "1. "; break;
+            case "check": insertText = "- [ ] "; break;
+            case "quote": insertText = "> "; break;
+            case "code": insertText = "```\n\n```"; cursorOffset = -4; break;
+            case "table": insertText = "| Spalte 1 | Spalte 2 |\n| -------- | -------- |\n| Wert 1   | Wert 2   |"; break;
+        }
+        
+        mdInput.value = before + insertText + after;
+        mdInput.focus();
+        mdInput.selectionStart = mdInput.selectionEnd = before.length + insertText.length + cursorOffset;
+        
+        hasChanges = true;
+        document.getElementById("save-status").style.display = "block";
+        updatePreview();
+        closeMenu();
+    }
+    
+    mdInput.addEventListener("input", (e) => {
+        if (!slashMenuVisible && e.data === '/') {
+            slashMenuVisible = true;
+            slashStartPosition = mdInput.selectionStart - 1;
+            slashSearchText = '';
+            
+            // Calculate coordinates
+            const coords = getCaretCoordinates(mdInput, mdInput.selectionStart);
+            const rect = mdInput.getBoundingClientRect();
+            
+            // Position menu
+            slashMenu.style.top = (rect.top + coords.top + 24 - mdInput.scrollTop) + 'px';
+            slashMenu.style.left = (rect.left + coords.left) + 'px';
+            slashMenu.classList.add("visible");
+            filterItems();
+        } else if (slashMenuVisible) {
+            const currentPos = mdInput.selectionStart;
+            if (currentPos <= slashStartPosition) {
+                closeMenu();
+            } else {
+                const textSinceSlash = mdInput.value.substring(slashStartPosition, currentPos);
+                if (textSinceSlash.startsWith('/')) {
+                    slashSearchText = textSinceSlash.substring(1);
+                    filterItems();
+                } else {
+                    closeMenu();
+                }
+            }
+        }
+    });
+    
+    mdInput.addEventListener("keydown", (e) => {
+        if (!slashMenuVisible) return;
+        
+        const visibleItems = items.filter(item => item.style.display !== 'none');
+        
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            slashSelectedIndex = (slashSelectedIndex + 1) % visibleItems.length;
+            updateSelection();
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            slashSelectedIndex = (slashSelectedIndex - 1 + visibleItems.length) % visibleItems.length;
+            updateSelection();
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (visibleItems.length > 0) {
+                executeCommand(visibleItems[slashSelectedIndex].dataset.cmd);
+            }
+        } else if (e.key === "Escape") {
+            e.preventDefault();
+            closeMenu();
+        }
+    });
+    
+    items.forEach(item => {
+        item.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            executeCommand(item.dataset.cmd);
+        });
+        item.addEventListener("mouseenter", () => {
+            const visibleItems = items.filter(i => i.style.display !== 'none');
+            slashSelectedIndex = visibleItems.indexOf(item);
+            updateSelection();
+        });
+    });
+    
+    mdInput.addEventListener("blur", () => {
+        setTimeout(closeMenu, 150);
+    });
+}
+
+// Initialize components
+setupSlashMenu();

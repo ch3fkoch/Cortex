@@ -4,22 +4,23 @@
    ============================================================================== */
 
 :root {
-    --bg-dark: #07090e;
-    --card-bg: rgba(255, 255, 255, 0.02);
-    --card-border: rgba(255, 255, 255, 0.05);
-    --card-border-hover: rgba(0, 240, 255, 0.3);
+    --bg-dark: #040808;
+    --bg-gradient: radial-gradient(circle at 50% 50%, #0a1816 0%, #040808 100%);
+    --card-bg: rgba(10, 25, 22, 0.45);
+    --card-border: rgba(16, 185, 129, 0.15);
+    --card-border-hover: #10b981;
     
-    --text-primary: #edeef0;
-    --text-secondary: #8c9ba5;
+    --text-primary: #e6f7f4;
+    --text-secondary: #86bfae;
     
-    --cyan: #00f0ff;
-    --violet: #8a2be2;
+    --cyan: #10b981;
+    --violet: #06b6d4;
     --gradient-accent: linear-gradient(135deg, var(--cyan), var(--violet));
     
     --sidebar-width: 280px;
     --header-height: 60px;
-    --border-radius: 16px;
-    --transition-speed: 0.3s;
+    --border-radius: 22px;
+    --transition-speed: 0.4s;
 }
 
 /* Reset & Base Setup */
@@ -31,6 +32,7 @@
 
 body {
     background-color: var(--bg-dark);
+    background-image: var(--bg-gradient);
     color: var(--text-primary);
     font-family: 'Outfit', sans-serif;
     height: 100vh;
@@ -86,24 +88,40 @@ body::after {
     gap: 15px;
 }
 
+@keyframes neural-morph {
+    0% { border-radius: 22px 26px 20px 24px; }
+    50% { border-radius: 26px 20px 24px 22px; }
+    100% { border-radius: 22px 26px 20px 24px; }
+}
+
+@keyframes neural-pulse-border {
+    0% { border-color: rgba(16, 185, 129, 0.15); box-shadow: 0 0 5px rgba(16, 185, 129, 0.05); }
+    50% { border-color: rgba(16, 185, 129, 0.35); box-shadow: 0 0 20px rgba(16, 185, 129, 0.2); }
+    100% { border-color: rgba(16, 185, 129, 0.15); box-shadow: 0 0 5px rgba(16, 185, 129, 0.05); }
+}
+
 /* Bento Card Base */
 .bento-card {
     background: var(--card-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     border: 1px solid var(--card-border);
     border-radius: var(--border-radius);
     padding: 20px;
-    transition: border var(--transition-speed), box-shadow var(--transition-speed);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s, border-color 0.4s;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    animation: neural-morph 8s ease-in-out infinite, neural-pulse-border 4s ease-in-out infinite;
 }
 
 .bento-card:hover {
-    border-color: rgba(0, 240, 255, 0.15);
-    box-shadow: 0 0 30px rgba(0, 240, 255, 0.03);
+    transform: translateY(-2px) scale(1.005);
+    background: rgba(16, 185, 129, 0.08);
+    border-color: var(--cyan);
+    box-shadow: 0 15px 35px rgba(16, 185, 129, 0.3);
+    animation-play-state: paused;
 }
 
 /* Sidebar Styling */
@@ -202,9 +220,10 @@ body::after {
 #workspace-container {
     grid-column: 2;
     display: grid;
-    grid-template-columns: 2fr 2fr 1.2fr;
+    grid-template-columns: 1fr 1fr auto;
     grid-template-rows: var(--header-height) minmax(0, 1fr);
     gap: 15px;
+    min-height: 0;
 }
 
 header {
@@ -236,6 +255,9 @@ header {
     padding: 6px 12px;
     border-radius: 6px;
     transition: var(--transition-speed);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .tool-btn:hover {
@@ -364,6 +386,16 @@ header {
     display: flex;
     flex-direction: column;
     gap: 15px;
+    width: 260px;
+    min-width: 180px;
+    max-width: 600px;
+    resize: horizontal;
+    overflow: hidden;
+    direction: rtl; /* Zieht den Resize-Handle nach links! */
+}
+
+#right-sidebar > * {
+    direction: ltr; /* Setzt den Text für den Inhalt wieder auf normal */
 }
 
 /* AI Assist Panel */
@@ -436,27 +468,27 @@ header {
 
 .meta-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 8px;
 }
 
 .meta-item {
     background: rgba(0, 0, 0, 0.15);
     border: 1px solid var(--card-border);
-    padding: 10px;
+    padding: 8px;
     border-radius: 8px;
     text-align: center;
 }
 
 .meta-label {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     color: var(--text-secondary);
     text-transform: uppercase;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .meta-value {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--cyan);
 }
@@ -470,8 +502,10 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 4px;
 }
 
 .status-dot {
@@ -534,8 +568,81 @@ body.mode-split #editor-card, body.mode-split #preview-card { display: flex; }
 
 /* Adjustments for single column views */
 body.mode-editor #workspace-container {
-    grid-template-columns: 1fr 0px 1.2fr;
+    grid-template-columns: 1fr 0px auto;
 }
 body.mode-preview #workspace-container {
-    grid-template-columns: 0px 1fr 1.2fr;
+    grid-template-columns: 0px 1fr auto;
+}
+
+/* Fullscreen Mode */
+body.fullscreen-active #sidebar,
+body.fullscreen-active #right-sidebar {
+    display: none;
+}
+body.fullscreen-active #app-container {
+    grid-template-columns: 1fr;
+}
+body.fullscreen-active.mode-editor #workspace-container {
+    grid-template-columns: 1fr 0px 0px;
+}
+body.fullscreen-active.mode-preview #workspace-container {
+    grid-template-columns: 0px 1fr 0px;
+}
+body.fullscreen-active.mode-split #workspace-container {
+    grid-template-columns: 1fr 1fr 0px;
+}
+
+/* Slash Command Menu */
+.slash-menu {
+    position: absolute;
+    display: none;
+    flex-direction: column;
+    background: rgba(10, 25, 22, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 8px;
+    min-width: 200px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(16, 185, 129, 0.2);
+    z-index: 1000;
+    font-family: 'Outfit', sans-serif;
+}
+
+.slash-menu.visible {
+    display: flex;
+}
+
+.slash-item {
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: var(--transition-speed);
+}
+
+.slash-item:hover, .slash-item.active {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--cyan);
+}
+
+.cmd-icon {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 700;
+    width: 24px;
+    text-align: center;
+    color: var(--violet);
+}
+
+.ghost-div {
+    position: absolute;
+    visibility: hidden;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }

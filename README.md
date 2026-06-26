@@ -1,6 +1,6 @@
 # MdForge
 
-**MdForge** ist ein moderner, serverloser (rein statischer) Markdown-Editor und -Viewer in edler Aero- und Glassmorphismus-Ästhetik mit einem fließenden Farbverlauf von **Neon-Cyan zu Violett**.
+**MdForge** ist ein moderner, serverloser (rein statischer) Markdown-Editor und -Viewer. Er besticht durch das **Living Neural Network**-Design – eine hypermoderne, organische UI mit weich pulsierenden Morphing-Karten, die sich an der Ästhetik lebender neuronaler Netze orientiert.
 
 Die Anwendung läuft vollständig clientseitig im Webbrowser – es ist **kein Server, kein Python und keine Installation von Abhängigkeiten erforderlich**.
 
@@ -10,14 +10,16 @@ Die Anwendung läuft vollständig clientseitig im Webbrowser – es ist **kein S
 
 - **Reines Frontend (Serverless):** Keine Hintergrunddienste, keine offenen Netzwerkports. Öffne einfach die `index.html` direkt im Browser.
 - **Lokaler Dateizugriff (HTML5 File System Access API):**
-  *   **Ordner öffnen:** Wähle ein lokales Verzeichnis aus. MdForge scannt und listet alle `.md` und `.txt` Dateien direkt in der Sidebar auf.
+  *   **Ordner öffnen:** Wähle ein lokales Verzeichnis aus. MdForge listet alle `.md` und `.txt` Dateien direkt in der Sidebar auf. Lokale Bilder werden per Blob-URL automatisch in die Vorschau geladen.
   *   **Direktes Speichern:** Änderungen werden mit `Strg+S` oder Klick auf "Speichern" direkt zurück auf deine Festplatte geschrieben.
-  *   **Neue Dateien:** Erstelle neue Dokumente direkt über das Interface auf deiner Festplatte.
-  *   **Sicherer Löschvorgang:** Dateien können direkt aus der App von der Festplatte gelöscht werden (nach Bestätigung).
-- **Universeller Fallback:** In Browsern ohne vollen API-Support (z. B. Firefox oder Safari) funktioniert die App im Fallback-Modus über manuelle Uploads/Downloads.
-- **Echtzeit-Markdown-Vorschau:** Live-Rendering von Markdown-Inhalten mit Syntax-Highlighting via Prism.
-- **Integriertes Text-Qualitätsbarometer:** Berechnet Zeichen, Wörter, Zeilen und geschätzte Lesezeit live beim Tippen.
-- **Direct AI Assist (Gemini Integration):** Trage deinen Gemini API-Key direkt in der Oberfläche ein (wird sicher lokal im Browser-Speicher abgelegt), um direkt clientseitig Textanalysen und Berichte zu generieren.
+  *   **Dateiverwaltung:** Erstelle neue Dokumente oder lösche sie direkt über das UI.
+- **Slash-Commands (Notion-Style):**
+  *   **Das Highlight des Editors:** Tippe im Textfeld einfach ein `/`, um direkt an deinem Cursor das schwebende, interaktive Markdown-Menü zu öffnen.
+  *   Du kannst Befehle wie `/h1`, `/ta` (Tabelle) oder `/code` eintippen, die Liste wird in Echtzeit gefiltert. Navigiere mit den Pfeiltasten und bestätige mit `Enter`.
+- **Fokus & UI:**
+  *   **Vollbildmodus:** Blende mit einem Klick alle Sidebars aus und fokussiere dich auf 100% Text-Breite.
+  *   **Skalierbare Widgets:** Die rechte Seitenleiste mit dem Live-Textbarometer (Wörter, Zeichen, Lesezeit) lässt sich stufenlos in der Breite ziehen.
+- **Echtzeit-Markdown-Vorschau:** Live-Rendering von Markdown-Inhalten mit Syntax-Highlighting (Prism).
 
 ---
 

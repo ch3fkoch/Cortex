@@ -47,6 +47,11 @@
                     <button onclick="insertAtCursor('# ', '')" class="tool-btn">H1</button>
                     <button onclick="insertAtCursor('--- \n', '')" class="tool-btn">—</button>
                     <button onclick="insertTable()" class="tool-btn" title="Tabelle einfügen">Tabelle</button>
+                    <button onclick="toggleFullscreen()" class="tool-btn" style="margin-left: 8px;" title="Vollbild umschalten">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                        </svg>
+                    </button>
                 </div>
 
                 <div id="file-title" style="font-size: 0.75rem; font-weight: 700; letter-spacing: 1.5px; color: var(--text-secondary);">KEINE DATEI GEWÄHLT</div>
@@ -112,7 +117,38 @@
     <!-- 3. Speichern Banner -->
     <div id="save-status" onclick="saveActiveDoc()">ÄNDERUNGEN SPEICHERN</div>
 
-    <!-- Script Import -->
+    <!-- Slash Command Menu -->
+    <div id="slash-menu" class="slash-menu">
+        <div class="slash-item" data-cmd="h1">
+            <span class="cmd-icon">#</span> H1 Überschrift
+        </div>
+        <div class="slash-item" data-cmd="h2">
+            <span class="cmd-icon">##</span> H2 Überschrift
+        </div>
+        <div class="slash-item" data-cmd="h3">
+            <span class="cmd-icon">###</span> H3 Überschrift
+        </div>
+        <div class="slash-item" data-cmd="ul">
+            <span class="cmd-icon">•</span> Liste (Unordered)
+        </div>
+        <div class="slash-item" data-cmd="ol">
+            <span class="cmd-icon">1.</span> Liste (Ordered)
+        </div>
+        <div class="slash-item" data-cmd="check">
+            <span class="cmd-icon">☑</span> Checkliste
+        </div>
+        <div class="slash-item" data-cmd="quote">
+            <span class="cmd-icon">"</span> Zitat
+        </div>
+        <div class="slash-item" data-cmd="code">
+            <span class="cmd-icon">&lt;/&gt;</span> Code Block
+        </div>
+        <div class="slash-item" data-cmd="table">
+            <span class="cmd-icon">▦</span> Tabelle
+        </div>
+    </div>
+
+    <!-- Script imports -->
     <script src="./js/app.js"></script>
 </body>
 </html>
