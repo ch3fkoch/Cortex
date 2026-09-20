@@ -1,19 +1,26 @@
 /* ==============================================================================
-   DATEI: js/app.js
-   ZIEL: Client-seitige Logik für den serverlosen Markdown-Editor (File System API)
+   CORTEX // CLIENT-SEITIGE ENGINE
+   - File System Access API mit Fallbacks
+   - DOMPurify XSS-Absicherung
+   - Industrial Theme Management (Light / Dark)
+   - Notion-Style Slash-Commands mit Ghost-Div Koordinaten
    ============================================================================== */
 
 let currentDirHandle = null;
 let activeHandle = null;
 const openedFilesMap = new Map();
 let hasChanges = false;
+let fileFilterQuery = '';
 
 // 1. Initialisierung bei Seitenaufbau
 document.addEventListener("DOMContentLoaded", () => {
-    // Marked Einstellungen
+    // 1.1 Theme-Initialisierung aus localStorage
+    initTheme();
+
+    // 1.2 Marked.js Konfiguration
     marked.setOptions({
         highlight: (code, lang) => {
-            if (Prism.languages[lang]) {
+            if (window.Prism && Prism.languages[lang]) {
                 return Prism.highlight(code, Prism.languages[lang], lang);
             }
             return code;
@@ -22,15 +29,15 @@ document.addEventListener("DOMContentLoaded", () => {
         gfm: true
     });
 
-    // Event-Listeners registrieren
+    // 1.3 Event-Listeners für den Editor
     const mdInput = document.getElementById("md-input");
     mdInput.addEventListener("input", () => {
         hasChanges = true;
-        document.getElementById("save-status").style.display = "block";
+        document.getElementById("save-status").style.display = "flex";
         updatePreview();
     });
 
-    // Shortcuts (Strg+S / Cmd+S speichert Datei)
+    // 1.4 Shortcuts (Strg+S / Cmd+S speichert Datei)
     document.addEventListener("keydown", (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === "s") {
             e.preventDefault();
@@ -38,65 +45,117 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Unterstützung für File System API prüfen und anzeigen
+    // 1.5 Vor Verlassen warnen wenn ungespeichert
+    window.addEventListener("beforeunload", (e) => {
+        if (hasChanges) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    // 1.6 API-Status anzeigen
     updateApiStatus();
 });
+
+// ── Theme Management (Industrial Light & Dark Mode) ─────────────────────────
+
+function initTheme() {
+    const savedTheme = localStorage.getItem("cortex_theme") || "dark";
+    document.documentElement.setAttribute("data-theme", savedTheme);
+    updateThemeButton(savedTheme);
+
+    const toggleBtn = document.getElementById("theme-toggle");
+    if (toggleBtn) {
+        toggleBtn.addEventListener("click", () => {
+            const current = document.documentElement.getAttribute("data-theme") || "dark";
+            const next = current === "dark" ? "light" : "dark";
+            document.documentElement.setAttribute("data-theme", next);
+            localStorage.setItem("cortex_theme", next);
+            updateThemeButton(next);
+        });
+    }
+}
+
+function updateThemeButton(theme) {
+    const btn = document.getElementById("theme-toggle");
+    if (btn) {
+        btn.textContent = theme === "dark" ? "THEME // DARK" : "THEME // LIGHT";
+    }
+}
 
 // ── Dateiverwaltung (Browser File System Access API) ─────────────────────────
 
 function updateApiStatus() {
     const statusText = document.getElementById("sys-api-status");
     if ('showDirectoryPicker' in window) {
-        statusText.innerText = "Aktiv (File System API)";
-        statusText.style.color = "var(--cyan)";
+        statusText.innerText = "Lokal & Direkt (File System API)";
+        statusText.className = "status-val-active";
     } else {
-        statusText.innerText = "Fallback (Downloads)";
-        statusText.style.color = "#ffb703";
+        statusText.innerText = "Modus: Manuelle Downloads";
+        statusText.style.color = "var(--accent-amber)";
     }
 }
 
 async function openDirectory() {
     if (!('showDirectoryPicker' in window)) {
-        alert("Dein Browser unterstützt die File System Access API nicht. Bitte verwende Chrome oder Edge.");
+        alert("Hinweis zur System-Kompatibilität:\n\nDein Browser unterstützt die native HTML5 File System Access API derzeit nicht vollständig.\nFür die nahtlose Ordner-Synchronisation und direktes lokales Speichern empfehlen wir Chromium-basierte Browser (Chrome, Brave, Edge).");
         return;
     }
 
     try {
         currentDirHandle = await window.showDirectoryPicker();
         openedFilesMap.clear();
-        
+
         for await (const entry of currentDirHandle.values()) {
             if (entry.kind === 'file' && (entry.name.endsWith('.md') || entry.name.endsWith('.txt'))) {
                 openedFilesMap.set(entry.name, entry);
             }
         }
-        
+
         renderFileList();
-        
-        // Erste Datei laden falls vorhanden
+
+        // Erste Datei automatisch laden falls vorhanden
         if (openedFilesMap.size > 0) {
             const firstFileName = openedFilesMap.keys().next().value;
             openFile(firstFileName);
         } else {
-            alert("Keine .md oder .txt Dateien in diesem Ordner gefunden.");
+            alert("Verzeichnis-Scan abgeschlossen:\n\nIn diesem Ordner wurden keine Markdown- (.md) oder Textdateien (.txt) gefunden. Du kannst oben über das Plus-Symbol direkt ein neues Dokument anlegen.");
         }
     } catch (e) {
-        console.error("Verzeichniszugriff abgebrochen oder fehlgeschlagen:", e);
+        if (e.name !== 'AbortError') {
+            console.error("Verzeichniszugriff fehlgeschlagen:", e);
+        }
     }
+}
+
+function filterFileList() {
+    const searchInput = document.getElementById("doc-search");
+    fileFilterQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    renderFileList();
 }
 
 function renderFileList() {
     const container = document.getElementById("doc-list");
     if (openedFilesMap.size === 0) {
-        container.innerHTML = `<div style="padding: 10px; font-size: 0.8rem; color: var(--text-secondary);">Keine Dateien geladen.</div>`;
+        container.innerHTML = `<div style="padding: 16px 12px; font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); text-align: center; line-height: 1.5;">KEIN ORDNER GEWÄHLT<br><span style="font-size: 0.68rem; opacity: 0.7;">Klicke oben auf das Ordner-Icon</span></div>`;
         return;
     }
 
-    container.innerHTML = Array.from(openedFilesMap.keys()).map(name => `
+    let files = Array.from(openedFilesMap.keys());
+    if (fileFilterQuery) {
+        files = files.filter(name => name.toLowerCase().includes(fileFilterQuery));
+    }
+
+    if (files.length === 0) {
+        container.innerHTML = `<div style="padding: 12px; font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); text-align: center;">KEINE TREFFER</div>`;
+        return;
+    }
+
+    container.innerHTML = files.map(name => `
         <div class="doc-item ${activeHandle && activeHandle.name === name ? 'active' : ''}" onclick="openFile('${name}')">
-            <span>${name}</span>
-            <span class="delete-file" onclick="deleteFile(event, '${name}')">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <span title="${name}">${name}</span>
+            <span class="delete-file" title="Datei löschen" onclick="deleteFile(event, '${name}')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="3 6 5 6 21 6"></polyline>
                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                 </svg>
@@ -106,21 +165,21 @@ function renderFileList() {
 }
 
 async function openFile(name) {
-    if (hasChanges && !confirm("Nicht gespeicherte Änderungen gehen verloren. Fortfahren?")) return;
-    
+    if (hasChanges && !confirm("Achtung: Ungespeicherte Änderungen im aktuellen Dokument gehen beim Wechsel verloren.\n\nMöchtest du trotzdem fortfahren?")) return;
+
     const handle = openedFilesMap.get(name);
     if (!handle) return;
-    
+
     activeHandle = handle;
     try {
         const file = await handle.getFile();
         const content = await file.text();
-        
+
         document.getElementById("md-input").value = content;
         document.getElementById("file-title").innerText = name.toUpperCase();
         document.getElementById("save-status").style.display = "none";
         hasChanges = false;
-        
+
         updatePreview();
         renderFileList();
     } catch (e) {
@@ -130,7 +189,7 @@ async function openFile(name) {
 
 async function saveActiveDoc() {
     const content = document.getElementById("md-input").value;
-    
+
     if (activeHandle && typeof activeHandle.createWritable === 'function') {
         try {
             const writable = await activeHandle.createWritable();
@@ -138,13 +197,11 @@ async function saveActiveDoc() {
             await writable.close();
             hasChanges = false;
             document.getElementById("save-status").style.display = "none";
-            console.log("Speichern erfolgreich.");
         } catch (e) {
-            console.warn("Fehler beim Direktspeichern, nutze Fallback-Download:", e);
+            console.warn("Direktspeichern fehlgeschlagen, nutze Fallback-Download:", e);
             triggerDownload(content);
         }
     } else {
-        // Fallback: Als Datei herunterladen
         triggerDownload(content);
     }
 }
@@ -166,40 +223,41 @@ async function createNewDoc() {
     if ('showSaveFilePicker' in window) {
         try {
             const handle = await window.showSaveFilePicker({
-                suggestedName: "neue_datei.md",
+                suggestedName: "neue_notiz.md",
                 types: [{
                     description: 'Markdown-Dateien',
                     accept: { 'text/markdown': ['.md'] }
                 }]
             });
-            
-            // Leere Datei erstellen
+
             const writable = await handle.createWritable();
-            await writable.write("# Neue Datei\n\nBeginne mit dem Schreiben...");
+            await writable.write("# Neues Dokument\n\nWillkommen in **Cortex**. Beginne direkt mit deinen Notizen oder tippe '/' für Schnellbefehle (Überschriften, Tabellen, Code, Checklisten)...\n");
             await writable.close();
-            
+
             openedFilesMap.set(handle.name, handle);
             activeHandle = handle;
-            
+
             renderFileList();
             openFile(handle.name);
         } catch (e) {
-            console.error("Datei erstellen abgebrochen:", e);
+            if (e.name !== 'AbortError') {
+                console.error("Datei erstellen abgebrochen:", e);
+            }
         }
     } else {
-        // Fallback für Browser ohne API
-        const name = prompt("Name der neuen Datei (z.B. datei.md):");
+        const name = prompt("Name der neuen Datei (z.B. notiz.md):");
         if (!name) return;
-        
+
+        const fileName = name.endsWith('.md') ? name : name + '.md';
         const mockHandle = {
-            name: name.endsWith('.md') ? name : name + '.md',
-            getFile: async () => new File(["# Neue Datei\n\nBeginne mit dem Schreiben..."], mockHandle.name),
+            name: fileName,
+            getFile: async () => new File(["# Neues Dokument\n\nWillkommen in **Cortex**. Beginne direkt mit deinen Notizen oder tippe '/' für Schnellbefehle...\n"], fileName),
             createWritable: null
         };
-        
+
         openedFilesMap.set(mockHandle.name, mockHandle);
         activeHandle = mockHandle;
-        
+
         renderFileList();
         openFile(mockHandle.name);
     }
@@ -207,13 +265,13 @@ async function createNewDoc() {
 
 async function deleteFile(e, name) {
     e.stopPropagation();
-    if (!confirm(`Datei "${name}" wirklich löschen? (Wird von der Festplatte gelöscht!)`)) return;
+    if (!confirm(`Dokument unwiderruflich löschen:\n\nMöchtest du "${name}" wirklich dauerhaft von deinem Dateisystem entfernen?`)) return;
 
     try {
         if (currentDirHandle) {
             await currentDirHandle.removeEntry(name);
             openedFilesMap.delete(name);
-            
+
             if (activeHandle && activeHandle.name === name) {
                 activeHandle = null;
                 document.getElementById("md-input").value = "";
@@ -221,10 +279,9 @@ async function deleteFile(e, name) {
                 document.getElementById("file-title").innerText = "KEINE DATEI GEWÄHLT";
                 resetStats();
             }
-            
+
             renderFileList();
         } else {
-            // Fallback: Nur aus Sidebar-Liste entfernen
             openedFilesMap.delete(name);
             if (activeHandle && activeHandle.name === name) {
                 activeHandle = null;
@@ -240,56 +297,55 @@ async function deleteFile(e, name) {
     }
 }
 
-
-
-// ── UI-States, Text-Metriken & Helpers ────────────────────────────────────────
+// ── Markdown-Rendering mit DOMPurify XSS-Schutz & Bild-Resolution ─────────────
 
 const imageCache = new Map();
 
 async function updatePreview() {
     const text = document.getElementById("md-input").value;
     const rawHtml = marked.parse(text);
-    
-    // HTML parsen, um Bilder zu finden
+
+    // 🔒 Viktor Stahl Sicherheits-Gate: XSS Desinfektion via DOMPurify
+    const cleanHtml = (typeof DOMPurify !== 'undefined') ? DOMPurify.sanitize(rawHtml) : rawHtml;
+
+    // Lokale Bilder auflösen
     const parser = new DOMParser();
-    const doc = parser.parseFromString(rawHtml, 'text/html');
+    const doc = parser.parseFromString(cleanHtml, 'text/html');
     const images = doc.querySelectorAll('img');
-    
+
     if (currentDirHandle && images.length > 0) {
         for (const img of images) {
             const src = img.getAttribute('src');
-            // Nur relative Pfade auflösen (keine URLs oder Data-URIs)
             if (src && !src.match(/^(http|https|data|blob|file):/i)) {
                 try {
                     if (imageCache.has(src)) {
                         img.setAttribute('src', imageCache.get(src));
                     } else {
-                        // Pfad in Verzeichnisse und Dateinamen aufteilen
                         const parts = src.split('/').filter(p => p && p !== '.');
                         let handle = currentDirHandle;
-                        
-                        // Durch die Ordnerhierarchie navigieren
+
                         for (let i = 0; i < parts.length - 1; i++) {
                             handle = await handle.getDirectoryHandle(parts[i]);
                         }
-                        
-                        // Datei-Handle holen und als Blob-URL lesen
+
                         const fileHandle = await handle.getFileHandle(parts[parts.length - 1]);
                         const file = await fileHandle.getFile();
                         const blobUrl = URL.createObjectURL(file);
-                        
+
                         imageCache.set(src, blobUrl);
                         img.setAttribute('src', blobUrl);
                     }
                 } catch (e) {
-                    console.warn('Konnte lokales Bild nicht laden:', src, e);
+                    console.warn('Lokales Bild konnte nicht aufgelöst werden:', src, e);
                 }
             }
         }
     }
-    
+
     document.getElementById("preview-content").innerHTML = doc.body.innerHTML;
-    Prism.highlightAll();
+    if (window.Prism) {
+        Prism.highlightAll();
+    }
     updateStats(text);
 }
 
@@ -297,10 +353,8 @@ function updateStats(text) {
     const charCount = text.length;
     const wordCount = text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
     const lineCount = text === "" ? 0 : text.split("\n").length;
-    
-    // Annahme: ~200 Wörter pro Minute Lesezeit
     const readTime = Math.max(1, Math.ceil(wordCount / 200));
-    
+
     document.getElementById("stat-chars").innerText = charCount;
     document.getElementById("stat-words").innerText = wordCount;
     document.getElementById("stat-lines").innerText = lineCount;
@@ -334,20 +388,19 @@ function insertAtCursor(before, after) {
     area.focus();
     area.selectionStart = start + before.length;
     area.selectionEnd = end + before.length;
-    
+
     hasChanges = true;
-    document.getElementById("save-status").style.display = "block";
+    document.getElementById("save-status").style.display = "flex";
     updatePreview();
 }
 
 function insertTable() {
-    const table = `\n| Spalte 1 | Spalte 2 |\n| -------- | -------- |\n| Wert 1   | Wert 2   |\n`;
+    const table = "\n| Metrik | Wert | Status |\n| ------ | ---- | ------ |\n| Alpha  | 0.05 | Valid  |\n| Latenz | 12ms | OK     |\n";
     insertAtCursor(table, '');
 }
 
-// ==========================================
-// SLASH COMMANDS (NOTION STYLE)
-// ==========================================
+// ── Notion-Style Slash Commands (/) ─────────────────────────────────────────
+
 let slashMenuVisible = false;
 let slashSearchText = '';
 let slashSelectedIndex = 0;
@@ -356,25 +409,29 @@ let slashStartPosition = -1;
 function getCaretCoordinates(element, position) {
     const div = document.createElement('div');
     div.className = 'ghost-div';
-    
+
     const style = window.getComputedStyle(element);
     ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'paddingTop', 'paddingLeft', 'paddingRight', 'paddingBottom', 'border', 'borderWidth', 'boxSizing'].forEach(prop => {
         div.style[prop] = style[prop];
     });
-    
+
+    div.style.position = 'absolute';
+    div.style.visibility = 'hidden';
+    div.style.whiteSpace = 'pre-wrap';
+    div.style.wordWrap = 'break-word';
     div.style.width = element.clientWidth + 'px';
     div.style.height = element.clientHeight + 'px';
-    
+
     div.textContent = element.value.substring(0, position);
     const span = document.createElement('span');
     span.textContent = element.value.substring(position) || '.';
     div.appendChild(span);
-    
+
     document.body.appendChild(div);
-    
+
     const x = span.offsetLeft;
     const y = span.offsetTop;
-    
+
     document.body.removeChild(div);
     return { top: y, left: x };
 }
@@ -383,18 +440,18 @@ function setupSlashMenu() {
     const mdInput = document.getElementById("md-input");
     const slashMenu = document.getElementById("slash-menu");
     const items = Array.from(slashMenu.querySelectorAll(".slash-item"));
-    
+
     function closeMenu() {
         slashMenuVisible = false;
         slashMenu.classList.remove("visible");
         slashSearchText = '';
         slashStartPosition = -1;
     }
-    
+
     function filterItems() {
         let visibleCount = 0;
         const query = slashSearchText.toLowerCase();
-        
+
         items.forEach(item => {
             const text = item.textContent.trim().toLowerCase();
             if (text.includes(query) || item.dataset.cmd.includes(query)) {
@@ -405,7 +462,7 @@ function setupSlashMenu() {
             }
             item.classList.remove("active");
         });
-        
+
         if (visibleCount === 0) {
             closeMenu();
         } else {
@@ -413,7 +470,7 @@ function setupSlashMenu() {
             updateSelection();
         }
     }
-    
+
     function updateSelection() {
         const visibleItems = items.filter(item => item.style.display !== 'none');
         visibleItems.forEach((item, index) => {
@@ -425,15 +482,15 @@ function setupSlashMenu() {
             }
         });
     }
-    
+
     function executeCommand(cmd) {
         const value = mdInput.value;
         const before = value.substring(0, slashStartPosition);
         const after = value.substring(mdInput.selectionStart);
-        
+
         let insertText = "";
         let cursorOffset = 0;
-        
+
         switch (cmd) {
             case "h1": insertText = "# "; break;
             case "h2": insertText = "## "; break;
@@ -442,32 +499,30 @@ function setupSlashMenu() {
             case "ol": insertText = "1. "; break;
             case "check": insertText = "- [ ] "; break;
             case "quote": insertText = "> "; break;
-            case "code": insertText = "```\n\n```"; cursorOffset = -4; break;
+            case "code": insertText = "```python\n# Code hier einfügen\n```"; cursorOffset = -4; break;
             case "table": insertText = "| Spalte 1 | Spalte 2 |\n| -------- | -------- |\n| Wert 1   | Wert 2   |"; break;
         }
-        
+
         mdInput.value = before + insertText + after;
         mdInput.focus();
         mdInput.selectionStart = mdInput.selectionEnd = before.length + insertText.length + cursorOffset;
-        
+
         hasChanges = true;
-        document.getElementById("save-status").style.display = "block";
+        document.getElementById("save-status").style.display = "flex";
         updatePreview();
         closeMenu();
     }
-    
+
     mdInput.addEventListener("input", (e) => {
         if (!slashMenuVisible && e.data === '/') {
             slashMenuVisible = true;
             slashStartPosition = mdInput.selectionStart - 1;
             slashSearchText = '';
-            
-            // Calculate coordinates
+
             const coords = getCaretCoordinates(mdInput, mdInput.selectionStart);
             const rect = mdInput.getBoundingClientRect();
-            
-            // Position menu
-            slashMenu.style.top = (rect.top + coords.top + 24 - mdInput.scrollTop) + 'px';
+
+            slashMenu.style.top = (rect.top + coords.top + 26 - mdInput.scrollTop) + 'px';
             slashMenu.style.left = (rect.left + coords.left) + 'px';
             slashMenu.classList.add("visible");
             filterItems();
@@ -486,12 +541,12 @@ function setupSlashMenu() {
             }
         }
     });
-    
+
     mdInput.addEventListener("keydown", (e) => {
         if (!slashMenuVisible) return;
-        
+
         const visibleItems = items.filter(item => item.style.display !== 'none');
-        
+
         if (e.key === "ArrowDown") {
             e.preventDefault();
             slashSelectedIndex = (slashSelectedIndex + 1) % visibleItems.length;
@@ -510,7 +565,7 @@ function setupSlashMenu() {
             closeMenu();
         }
     });
-    
+
     items.forEach(item => {
         item.addEventListener("mousedown", (e) => {
             e.preventDefault();
@@ -522,11 +577,11 @@ function setupSlashMenu() {
             updateSelection();
         });
     });
-    
+
     mdInput.addEventListener("blur", () => {
-        setTimeout(closeMenu, 150);
+        setTimeout(closeMenu, 160);
     });
 }
 
-// Initialize components
+// 2. Initialisiere Slash Menu
 setupSlashMenu();

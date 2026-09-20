@@ -1,25 +1,41 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cortex // Markdown Studio</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <title>Cortex // Sovereign Local-First Markdown Studio</title>
+    <meta name="description" content="Cortex ist ein serverloser, hochpräziser Markdown-Editor im Industrial-Design mit lokaler Dateisystem-Anbindung, Notion-Style Slash-Commands und XSS-Härtung.">
+    
+    <!-- Google Fonts: Outfit (Display Headings), Inter (Body Text), JetBrains Mono (Tech Specs / Editor) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Vendor Libraries -->
     <script src="./vendor/marked.min.js"></script>
+    <script src="./vendor/purify.min.js"></script>
     <link rel="stylesheet" href="./vendor/prism-tomorrow.min.css">
     <script src="./vendor/prism.min.js"></script>
     <script src="./vendor/prism-python.min.js"></script>
     <script src="./vendor/prism-bash.min.js"></script>
+    
+    <!-- Core Styling -->
     <link rel="stylesheet" href="./css/style.css">
 </head>
 <body class="mode-split">
+
+    <!-- Subtle Technical Blueprint Dot Grid -->
+    <div class="blueprint-bg"></div>
 
     <div id="app-container">
         <!-- 1. Sidebar (Dateiliste) -->
         <aside id="sidebar" class="bento-card">
             <div class="sidebar-header">
-                <div class="brand">Cortex</div>
-                <div style="display: flex; gap: 8px;">
+                <div class="brand">
+                    <span class="brand-title">CORTEX</span>
+                    <span class="brand-subtitle">STUDIO</span>
+                </div>
+                <div class="sidebar-actions">
                     <button onclick="openDirectory()" class="btn-icon" title="Ordner öffnen">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
@@ -33,39 +49,57 @@
                     </button>
                 </div>
             </div>
+            
+            <div class="search-box-wrapper">
+                <input type="text" id="doc-search" placeholder="Dokumente durchsuchen..." oninput="filterFileList()" spellcheck="false">
+            </div>
+
             <div id="doc-list"></div>
+
+            <div class="sidebar-footer">
+                <span class="copyright-text">© 2026 by Stephan Koch</span>
+            </div>
         </aside>
 
         <!-- 2. Haupt-Workspace -->
         <div id="workspace-container">
             <!-- 2.1 Workspace Header (Tools & View Mode) -->
-            <header>
+            <header class="bento-card header-bar">
                 <div class="editor-tools">
-                    <button onclick="insertAtCursor('**', '**')" class="tool-btn" title="Fett">B</button>
-                    <button onclick="insertAtCursor('*', '*')" class="tool-btn" title="Kursiv">I</button>
+                    <button onclick="insertAtCursor('**', '**')" class="tool-btn" title="Fett"><strong>B</strong></button>
+                    <button onclick="insertAtCursor('*', '*')" class="tool-btn" title="Kursiv"><em>I</em></button>
                     <button onclick="insertAtCursor('[', '](url)')" class="tool-btn" title="Link einfügen">Link</button>
                     <button onclick="insertAtCursor('# ', '')" class="tool-btn">H1</button>
-                    <button onclick="insertAtCursor('--- \n', '')" class="tool-btn">—</button>
-                    <button onclick="insertTable()" class="tool-btn" title="Tabelle einfügen">Tabelle</button>
-                    <button onclick="toggleFullscreen()" class="tool-btn" style="margin-left: 8px;" title="Vollbild umschalten">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <button onclick="insertAtCursor('## ', '')" class="tool-btn">H2</button>
+                    <button onclick="insertAtCursor('--- 
+', '')" class="tool-btn">—</button>
+                    <button onclick="insertTable()" class="tool-btn" title="Tabelle einfügen">▦ Tab</button>
+                    <button onclick="toggleFullscreen()" class="tool-btn btn-fullscreen" title="Vollbild umschalten">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
                         </svg>
                     </button>
                 </div>
 
-                <div id="file-title" style="font-size: 0.75rem; font-weight: 700; letter-spacing: 1.5px; color: var(--text-secondary);">KEINE DATEI GEWÄHLT</div>
+                <div class="file-info-badge">
+                    <span class="status-indicator"></span>
+                    <span id="file-title">KEINE DATEI GEWÄHLT</span>
+                </div>
 
-                <div class="view-controls">
-                    <button onclick="setMode('editor')" class="view-btn" id="btn-editor">EDIT</button>
-                    <button onclick="setMode('split')" class="view-btn active" id="btn-split">SPLIT</button>
-                    <button onclick="setMode('preview')" class="view-btn" id="btn-preview">READ</button>
+                <div class="header-right-controls">
+                    <button id="theme-toggle" class="theme-btn" title="Theme wechseln">THEME // DARK</button>
+
+                    <div class="view-controls">
+                        <button onclick="setMode('editor')" class="view-btn" id="btn-editor">EDIT</button>
+                        <button onclick="setMode('split')" class="view-btn active" id="btn-split">SPLIT</button>
+                        <button onclick="setMode('preview')" class="view-btn" id="btn-preview">READ</button>
+                    </div>
                 </div>
             </header>
 
             <!-- 2.2 Editor Card -->
             <div id="editor-card" class="bento-card">
-                <textarea id="md-input" spellcheck="false" placeholder="Öffne einen Ordner oder erstelle eine neue Datei, um mit dem Schreiben zu beginnen..."></textarea>
+                <textarea id="md-input" spellcheck="false" placeholder="Beginne zu schreiben oder tippe '/' für Schnellbefehle (Überschriften, Code, Tabellen, Checklisten)..."></textarea>
             </div>
 
             <!-- 2.3 Preview Card -->
@@ -98,16 +132,39 @@
                     </div>
                 </div>
 
+                <!-- Shortcuts Widget -->
+                <div id="shortcuts-card" class="bento-card">
+                    <div class="section-title">Quick Controls</div>
+                    <div class="shortcut-list">
+                        <div class="shortcut-row">
+                            <span class="shortcut-desc">Speichern</span>
+                            <kbd class="tech-kbd">Strg+S</kbd>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-desc">Slash-Menü</span>
+                            <kbd class="tech-kbd">/</kbd>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="shortcut-desc">Fokusmodus</span>
+                            <kbd class="tech-kbd">Vollbild</kbd>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- System-Status Widget -->
                 <div id="status-card" class="bento-card">
-                    <div class="section-title">System-Status</div>
+                    <div class="section-title">System & Security</div>
                     <div class="status-row">
-                        <span>Verbindungsmodus</span>
-                        <span id="sys-api-status" style="color: var(--cyan); font-weight: bold;">Lokal (Offline)</span>
+                        <span>Verbindung</span>
+                        <span id="sys-api-status" class="status-val-active">Lokal (Offline)</span>
                     </div>
                     <div class="status-row">
-                        <span>Projektname</span>
-                        <span id="sys-project" style="color: var(--text-secondary);">Cortex</span>
+                        <span>XSS-Schutz</span>
+                        <span id="sys-xss-status" class="status-val-shield">DOMPurify Aktiv</span>
+                    </div>
+                    <div class="status-row">
+                        <span>Projekt</span>
+                        <span id="sys-project">Cortex v2.0</span>
                     </div>
                 </div>
             </div>
@@ -115,36 +172,48 @@
     </div>
 
     <!-- 3. Speichern Banner -->
-    <div id="save-status" onclick="saveActiveDoc()">ÄNDERUNGEN SPEICHERN</div>
+    <div id="save-status" onclick="saveActiveDoc()">
+        <span class="save-pulse"></span>
+        <span>ÄNDERUNGEN JETZT SPEICHERN (STRG+S)</span>
+    </div>
 
     <!-- Slash Command Menu -->
     <div id="slash-menu" class="slash-menu">
         <div class="slash-item" data-cmd="h1">
-            <span class="cmd-icon">#</span> H1 Überschrift
+            <span class="cmd-icon">#</span>
+            <div class="cmd-text"><span class="cmd-name">Hauptüberschrift (H1)</span><span class="cmd-desc">Großer Dokumententitel</span></div>
         </div>
         <div class="slash-item" data-cmd="h2">
-            <span class="cmd-icon">##</span> H2 Überschrift
+            <span class="cmd-icon">##</span>
+            <div class="cmd-text"><span class="cmd-name">Abschnitt (H2)</span><span class="cmd-desc">Strukturierte Zwischenüberschrift</span></div>
         </div>
         <div class="slash-item" data-cmd="h3">
-            <span class="cmd-icon">###</span> H3 Überschrift
+            <span class="cmd-icon">###</span>
+            <div class="cmd-text"><span class="cmd-name">Unterabschnitt (H3)</span><span class="cmd-desc">Feingliedrige Gliederung</span></div>
         </div>
         <div class="slash-item" data-cmd="ul">
-            <span class="cmd-icon">•</span> Liste (Unordered)
+            <span class="cmd-icon">•</span>
+            <div class="cmd-text"><span class="cmd-name">Aufzählungsliste</span><span class="cmd-desc">Stichpunkte und Aufzählungen</span></div>
         </div>
         <div class="slash-item" data-cmd="ol">
-            <span class="cmd-icon">1.</span> Liste (Ordered)
+            <span class="cmd-icon">1.</span>
+            <div class="cmd-text"><span class="cmd-name">Nummerierte Sequenz</span><span class="cmd-desc">Schritt-für-Schritt Ablauf</span></div>
         </div>
         <div class="slash-item" data-cmd="check">
-            <span class="cmd-icon">☑</span> Checkliste
+            <span class="cmd-icon">☑</span>
+            <div class="cmd-text"><span class="cmd-name">Task-Checkliste</span><span class="cmd-desc">Interaktive Aufgabenverwaltung</span></div>
         </div>
         <div class="slash-item" data-cmd="quote">
-            <span class="cmd-icon">"</span> Zitat
+            <span class="cmd-icon">"</span>
+            <div class="cmd-text"><span class="cmd-name">Callout & Zitat</span><span class="cmd-desc">Hervorgehobener Notizblock</span></div>
         </div>
         <div class="slash-item" data-cmd="code">
-            <span class="cmd-icon">&lt;/&gt;</span> Code Block
+            <span class="cmd-icon">&lt;/&gt;</span>
+            <div class="cmd-text"><span class="cmd-name">Code-Segment</span><span class="cmd-desc">Syntax-Highlighting für Python & Web</span></div>
         </div>
         <div class="slash-item" data-cmd="table">
-            <span class="cmd-icon">▦</span> Tabelle
+            <span class="cmd-icon">▦</span>
+            <div class="cmd-text"><span class="cmd-name">Datentabelle</span><span class="cmd-desc">Strukturierte Matrix mit Spalten</span></div>
         </div>
     </div>
 
