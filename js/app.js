@@ -515,15 +515,35 @@ function setupSlashMenu() {
 
     mdInput.addEventListener("input", (e) => {
         if (!slashMenuVisible && e.data === '/') {
+            const startPos = mdInput.selectionStart - 1;
+            // False-Positive Vermeidung: Nur triggern, wenn Slash am Zeilenanfang oder nach einem Leerzeichen steht
+            const charBefore = startPos > 0 ? mdInput.value[startPos - 1] : '\n';
+            if (charBefore !== '\n' && charBefore !== ' ' && charBefore !== '\t' && startPos !== 0) {
+                return; // Ignorieren bei URLs wie https:// oder Wörtern wie und/oder
+            }
+
             slashMenuVisible = true;
-            slashStartPosition = mdInput.selectionStart - 1;
+            slashStartPosition = startPos;
             slashSearchText = '';
 
             const coords = getCaretCoordinates(mdInput, mdInput.selectionStart);
             const rect = mdInput.getBoundingClientRect();
 
-            slashMenu.style.top = (rect.top + coords.top + 26 - mdInput.scrollTop) + 'px';
-            slashMenu.style.left = (rect.left + coords.left) + 'px';
+            // Viewport-Clamping: Verhindert, dass das Menü aus dem Bildschirm ragt
+            const menuWidth = 260;
+            const menuHeight = 320;
+            let top = rect.top + coords.top + 26 - mdInput.scrollTop;
+            let left = rect.left + coords.left;
+
+            if (left + menuWidth > window.innerWidth - 16) {
+                left = window.innerWidth - menuWidth - 16;
+            }
+            if (top + menuHeight > window.innerHeight - 16) {
+                top = (rect.top + coords.top - mdInput.scrollTop) - menuHeight - 8;
+            }
+
+            slashMenu.style.top = Math.max(10, top) + 'px';
+            slashMenu.style.left = Math.max(10, left) + 'px';
             slashMenu.classList.add("visible");
             filterItems();
         } else if (slashMenuVisible) {
@@ -555,7 +575,7 @@ function setupSlashMenu() {
             e.preventDefault();
             slashSelectedIndex = (slashSelectedIndex - 1 + visibleItems.length) % visibleItems.length;
             updateSelection();
-        } else if (e.key === "Enter") {
+        } else if (e.key === "Enter" || e.key === "Tab") {
             e.preventDefault();
             if (visibleItems.length > 0) {
                 executeCommand(visibleItems[slashSelectedIndex].dataset.cmd);
